@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { processSummary } from '@/lib/api-client';
+import { processServiceWriteUp, processSummary } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,28 +13,91 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DashboardHeader from '@/components/dashboard-header';
 import SummaryResults from '@/components/summary-results';
 import ParameterControls, { DEFAULT_PARAMETERS, GenerationParameters } from '@/components/parameter-controls';
-import PromptEditor, { DEFAULT_PROMPTS, SummaryPrompts } from '@/components/prompt-editor';
+import PromptEditor, { DEFAULT_PROMPTS, isCustomised, SummaryPrompts } from '@/components/prompt-editor';
 import FileUploadZone from '@/components/file-upload-zone';
-import { SERVICES, ServiceKey } from '@/lib/prompts';
-import type { SummaryResponse } from '@/lib/summary-types';
-import { parseSummaryMarkdown, summaryToHtml, summaryToPlainText, SummaryDocumentInput } from '@/lib/summary-format';
+import { SERVICES, SERVICE_SHORT_LABELS, ServiceKey } from '@/lib/prompts';
+import type { ServiceWriteUpResponse, ServiceWriteUps, SummaryResponse } from '@/lib/summary-types';
+import {
+  parseSummaryMarkdown,
+  summaryToHtml,
+  summaryToPlainText,
+  writeUpToHtml,
+  writeUpToPlainText,
+  SummaryDocumentInput,
+} from '@/lib/summary-format';
 import { buildSummaryDocx, summaryFileName } from '@/lib/export-docx';
 
 const PROMPTS_STORAGE_KEY = 'igs-summariser.prompts.v1';
 
+/**
+ * Read saved prompt edits, filling in anything a stored copy predates: the
+ * per-service write-up prompts were added after this key was first used.
+ */
 function loadStoredPrompts(): SummaryPrompts | null {
   try {
     const raw = window.localStorage.getItem(PROMPTS_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (typeof parsed?.mainPoints === 'string' && typeof parsed?.recommendations === 'string') {
-      return parsed;
+    if (typeof parsed?.mainPoints !== 'string' || typeof parsed?.recommendations !== 'string') return null;
+
+    const writeUps = { ...DEFAULT_PROMPTS.writeUps };
+    for (const service of SERVICES) {
+      const stored = parsed?.writeUps?.[service.key];
+      if (typeof stored === 'string' && stored.trim()) writeUps[service.key] = stored;
     }
+    return { mainPoints: parsed.mainPoints, recommendations: parsed.recommendations, writeUps };
   } catch {
     // Ignore corrupt or unavailable storage.
   }
   return null;
 }
+
+/**
+ * Copy rich text to the clipboard so headings and bullets survive a paste into
+ * Word, Salesforce or email. Falls back to plain text, then to the legacy
+ * execCommand path for older browsers. Returns false if every attempt failed.
+ */
+async function copyRichText(text: string, html: string): Promise<boolean> {
+  const attempts: Array<() => Promise<void>> = [
+    async () => {
+      if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) throw new Error('unsupported');
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+          'text/html': new Blob([html], { type: 'text/html' }),
+        }),
+      ]);
+    },
+    async () => {
+      if (!navigator.clipboard?.writeText) throw new Error('unsupported');
+      await navigator.clipboard.writeText(text);
+    },
+    async () => {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand('copy');
+      textarea.remove();
+      if (!ok) throw new Error('execCommand failed');
+    },
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      await attempt();
+      return true;
+    } catch {
+      // Try the next method.
+    }
+  }
+  return false;
+}
+
+const COPY_FAILED_MESSAGE = 'Could not copy to the clipboard. Please select the text and copy it manually.';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -49,6 +112,8 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [results, setResults] = useState<SummaryResponse | null>(null);
   const [selectedServices, setSelectedServices] = useState<ServiceKey[]>([]);
+  const [writeUps, setWriteUps] = useState<ServiceWriteUps>({});
+  const [copiedWriteUp, setCopiedWriteUp] = useState<ServiceKey | null>(null);
   const [parameters, setParameters] = useState<GenerationParameters>(DEFAULT_PARAMETERS);
   const [prompts, setPrompts] = useState<SummaryPrompts>(DEFAULT_PROMPTS);
   const [promptsLoaded, setPromptsLoaded] = useState(false);
@@ -69,9 +134,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!promptsLoaded) return;
     try {
-      const isDefault =
-        prompts.mainPoints === DEFAULT_PROMPTS.mainPoints && prompts.recommendations === DEFAULT_PROMPTS.recommendations;
-      if (isDefault) {
+      if (!isCustomised(prompts)) {
         window.localStorage.removeItem(PROMPTS_STORAGE_KEY);
       } else {
         window.localStorage.setItem(PROMPTS_STORAGE_KEY, JSON.stringify(prompts));
@@ -100,6 +163,9 @@ export default function DashboardPage() {
     setLoading(true);
     setError('');
     setCopied(false);
+    // Write-ups belong to the transcript they were generated from.
+    setWriteUps({});
+    setCopiedWriteUp(null);
 
     try {
       const formData = new FormData();
@@ -131,6 +197,65 @@ export default function DashboardPage() {
     );
   };
 
+  /**
+   * Run the service's write-up prompt over the transcript the summary was built
+   * from, producing text the coach can paste straight into Salesforce.
+   */
+  const handleGenerateWriteUp = useCallback(
+    async (service: ServiceKey) => {
+      if (!results?.transcript) {
+        setError('The transcript is no longer available. Please generate the summary again.');
+        return;
+      }
+
+      setError('');
+      setWriteUps((current) => ({ ...current, [service]: { status: 'loading' } }));
+
+      try {
+        const data: ServiceWriteUpResponse = await processServiceWriteUp({
+          service,
+          transcript: results.transcript,
+          prompt: prompts.writeUps[service],
+          temperature: parameters.temperature,
+          top_p: parameters.topP,
+          frequency_penalty: parameters.frequencyPenalty,
+          presence_penalty: parameters.presencePenalty,
+        });
+        setWriteUps((current) => ({
+          ...current,
+          [service]: { status: 'ready', text: data.text, warnings: data.warnings ?? [], generatedAt: new Date() },
+        }));
+      } catch (err: any) {
+        setWriteUps((current) => ({
+          ...current,
+          [service]: {
+            status: 'error',
+            message: err.response?.data?.detail || 'Failed to generate the write-up. Please try again.',
+          },
+        }));
+      }
+    },
+    [results, prompts, parameters]
+  );
+
+  const handleCopyWriteUp = useCallback(
+    async (service: ServiceKey) => {
+      const writeUp = writeUps[service];
+      if (writeUp?.status !== 'ready') return;
+
+      const blocks = parseSummaryMarkdown(writeUp.text);
+      if (!(await copyRichText(writeUpToPlainText(blocks), writeUpToHtml(blocks)))) {
+        setError(COPY_FAILED_MESSAGE);
+        return;
+      }
+
+      setError('');
+      setCopiedWriteUp(service);
+      window.setTimeout(() => setCopiedWriteUp((current) => (current === service ? null : current)), 2500);
+    },
+    [writeUps]
+  );
+
   const documentInput = useMemo<SummaryDocumentInput | null>(() => {
     if (!results) return null;
     return {
@@ -138,56 +263,26 @@ export default function DashboardPage() {
       mainPoints: parseSummaryMarkdown(results.main_points),
       recommendations: parseSummaryMarkdown(results.recommendations),
       services: SERVICES.map((service) => ({ label: service.label, selected: selectedServices.includes(service.key) })),
+      writeUps: SERVICES.flatMap((service) => {
+        const writeUp = writeUps[service.key];
+        return writeUp?.status === 'ready'
+          ? [{ label: SERVICE_SHORT_LABELS[service.key], blocks: parseSummaryMarkdown(writeUp.text) }]
+          : [];
+      }),
     };
-  }, [results, selectedServices]);
+  }, [results, selectedServices, writeUps]);
 
   const handleCopy = useCallback(async () => {
     if (!documentInput) return;
-    const text = summaryToPlainText(documentInput);
-    const html = summaryToHtml(documentInput);
 
-    // Rich copy (keeps headings and bullets when pasted into Word or email),
-    // then plain text, then the legacy execCommand path for older browsers.
-    const attempts: Array<() => Promise<void>> = [
-      async () => {
-        if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) throw new Error('unsupported');
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/plain': new Blob([text], { type: 'text/plain' }),
-            'text/html': new Blob([html], { type: 'text/html' }),
-          }),
-        ]);
-      },
-      async () => {
-        if (!navigator.clipboard?.writeText) throw new Error('unsupported');
-        await navigator.clipboard.writeText(text);
-      },
-      async () => {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.setAttribute('readonly', '');
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        const ok = document.execCommand('copy');
-        textarea.remove();
-        if (!ok) throw new Error('execCommand failed');
-      },
-    ];
-
-    for (const attempt of attempts) {
-      try {
-        await attempt();
-        setError('');
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2500);
-        return;
-      } catch {
-        // Try the next method.
-      }
+    if (!(await copyRichText(summaryToPlainText(documentInput), summaryToHtml(documentInput)))) {
+      setError(COPY_FAILED_MESSAGE);
+      return;
     }
-    setError('Could not copy to the clipboard. Please select the text and copy it manually.');
+
+    setError('');
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2500);
   }, [documentInput]);
 
   const handleDownload = useCallback(async () => {
@@ -275,6 +370,10 @@ export default function DashboardPage() {
                 results={results}
                 selectedServices={selectedServices}
                 onServiceToggle={handleServiceToggle}
+                writeUps={writeUps}
+                onGenerateWriteUp={handleGenerateWriteUp}
+                onCopyWriteUp={handleCopyWriteUp}
+                copiedWriteUp={copiedWriteUp}
                 onCopy={handleCopy}
                 onDownload={handleDownload}
                 copied={copied}

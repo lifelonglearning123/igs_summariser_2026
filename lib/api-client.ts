@@ -24,4 +24,19 @@ export async function processSummary(formData: FormData) {
   return response.data;
 }
 
+export interface ServiceWriteUpRequest {
+  service: string;
+  transcript: string;
+  prompt?: string;
+  temperature?: number;
+  top_p?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+}
+
+export async function processServiceWriteUp(payload: ServiceWriteUpRequest) {
+  const response = await apiClient.post('/api/service-writeup', payload);
+  return response.data;
+}
+
 export default apiClient;

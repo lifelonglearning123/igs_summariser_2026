@@ -114,11 +114,18 @@ export function runsToText(runs: Run[]): string {
 /* Whole-document rendering (plain text and HTML)                      */
 /* ------------------------------------------------------------------ */
 
+export interface SummaryWriteUp {
+  label: string;
+  blocks: Block[];
+}
+
 export interface SummaryDocumentInput {
   generatedAt: Date;
   mainPoints: Block[];
   recommendations: Block[];
   services: { label: string; selected: boolean }[];
+  /** Salesforce write-ups the coach generated, in service order. */
+  writeUps: SummaryWriteUp[];
 }
 
 export function formatGeneratedAt(date: Date): string {
@@ -150,7 +157,7 @@ export function blocksToPlainText(blocks: Block[]): string {
 
 export function summaryToPlainText(input: SummaryDocumentInput): string {
   const services = input.services.map((s) => `${s.selected ? '[x]' : '[ ]'} ${s.label}`).join('\n');
-  return [
+  const sections = [
     'MEETING SUMMARY',
     `Generated: ${formatGeneratedAt(input.generatedAt)}`,
     '',
@@ -162,7 +169,13 @@ export function summaryToPlainText(input: SummaryDocumentInput): string {
     '',
     'SERVICES COVERED',
     services,
-  ].join('\n');
+  ];
+
+  for (const writeUp of input.writeUps) {
+    sections.push('', `${writeUp.label.toUpperCase()} WRITE-UP`, blocksToPlainText(writeUp.blocks));
+  }
+
+  return sections.join('\n');
 }
 
 function escapeHtml(text: string): string {
@@ -220,6 +233,19 @@ export function summaryToHtml(input: SummaryDocumentInput): string {
     blocksToHtml(input.recommendations),
     '<h3>Services Covered</h3>',
     `<ul>${services}</ul>`,
+    ...input.writeUps.flatMap((writeUp) => [
+      `<h3>${escapeHtml(writeUp.label)} Write-up</h3>`,
+      blocksToHtml(writeUp.blocks),
+    ]),
     '</div>',
   ].join('');
+}
+
+/** The text a coach pastes into a Salesforce field: the write-up body alone. */
+export function writeUpToPlainText(blocks: Block[]): string {
+  return blocksToPlainText(blocks);
+}
+
+export function writeUpToHtml(blocks: Block[]): string {
+  return `<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.4">${blocksToHtml(blocks)}</div>`;
 }

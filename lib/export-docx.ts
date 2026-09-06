@@ -91,6 +91,14 @@ export async function buildSummaryDocx(input: SummaryDocumentInput): Promise<Blo
           spacing: { after: 60 },
         })
     ),
+    ...input.writeUps.flatMap((writeUp) => [
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun(`${writeUp.label} Write-up`)],
+        spacing: { before: 360, after: 120 },
+      }),
+      ...blocksToParagraphs(writeUp.blocks, numberedInstance),
+    ]),
   ];
 
   const document = new Document({

@@ -2,17 +2,35 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronDown, ChevronUp, FileEdit, RotateCcw } from 'lucide-react';
-import { DEFAULT_MAIN_POINTS_PROMPT, DEFAULT_RECOMMENDATIONS_PROMPT } from '@/lib/prompts';
+import {
+  DEFAULT_MAIN_POINTS_PROMPT,
+  DEFAULT_RECOMMENDATIONS_PROMPT,
+  DEFAULT_WRITE_UP_PROMPTS,
+  SERVICES,
+  SERVICE_SHORT_LABELS,
+  ServiceKey,
+} from '@/lib/prompts';
 
 export interface SummaryPrompts {
   mainPoints: string;
   recommendations: string;
+  /** One Salesforce write-up prompt per service. */
+  writeUps: Record<ServiceKey, string>;
 }
 
 export const DEFAULT_PROMPTS: SummaryPrompts = {
   mainPoints: DEFAULT_MAIN_POINTS_PROMPT,
   recommendations: DEFAULT_RECOMMENDATIONS_PROMPT,
+  writeUps: DEFAULT_WRITE_UP_PROMPTS,
 };
+
+export function isCustomised(prompts: SummaryPrompts): boolean {
+  return (
+    prompts.mainPoints !== DEFAULT_PROMPTS.mainPoints ||
+    prompts.recommendations !== DEFAULT_PROMPTS.recommendations ||
+    SERVICES.some((service) => prompts.writeUps[service.key] !== DEFAULT_PROMPTS.writeUps[service.key])
+  );
+}
 
 interface PromptEditorProps {
   prompts: SummaryPrompts;
@@ -22,8 +40,7 @@ interface PromptEditorProps {
 
 export default function PromptEditor({ prompts, onChange, disabled }: PromptEditorProps) {
   const [open, setOpen] = useState(false);
-  const customised =
-    prompts.mainPoints !== DEFAULT_PROMPTS.mainPoints || prompts.recommendations !== DEFAULT_PROMPTS.recommendations;
+  const customised = isCustomised(prompts);
 
   return (
     <Card>
@@ -45,7 +62,8 @@ export default function PromptEditor({ prompts, onChange, disabled }: PromptEdit
         </button>
         {open && (
           <CardDescription>
-            Edit the instructions sent to the AI. Changes apply to the next summary and are remembered in this browser.
+            Edit the instructions sent to the AI. Changes apply to the next summary or write-up and are remembered in this
+            browser.
           </CardDescription>
         )}
       </CardHeader>
@@ -76,6 +94,29 @@ export default function PromptEditor({ prompts, onChange, disabled }: PromptEdit
               disabled={disabled}
               className="min-h-72 font-mono text-xs leading-5"
             />
+          </div>
+
+          <div className="space-y-4 border-t border-gray-200 pt-4">
+            <p className="text-sm font-medium text-gray-700">Salesforce write-up prompts</p>
+            <p className="-mt-3 text-xs text-gray-500">
+              Used when you generate a write-up for a service from the results.
+            </p>
+            {SERVICES.map((service) => (
+              <div key={service.key} className="space-y-2">
+                <label htmlFor={`write-up-prompt-${service.key}`} className="text-sm font-medium text-gray-700">
+                  {SERVICE_SHORT_LABELS[service.key]}
+                </label>
+                <Textarea
+                  id={`write-up-prompt-${service.key}`}
+                  value={prompts.writeUps[service.key]}
+                  onChange={(event) =>
+                    onChange({ ...prompts, writeUps: { ...prompts.writeUps, [service.key]: event.target.value } })
+                  }
+                  disabled={disabled}
+                  className="min-h-56 font-mono text-xs leading-5"
+                />
+              </div>
+            ))}
           </div>
 
           <button

@@ -35,12 +35,16 @@ function getOpenAIClient(): OpenAI {
 /**
  * Single chat completion with the coach system prompt.
  */
-export async function callOpenAI(prompt: string, params: GenerationParams): Promise<string> {
+export async function callOpenAI(
+  prompt: string,
+  params: GenerationParams,
+  systemPrompt: string = SYSTEM_PROMPT
+): Promise<string> {
   const openai = getOpenAIClient();
   const response = await openai.chat.completions.create({
     model: MODEL,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: prompt },
     ],
     max_tokens: MAX_OUTPUT_TOKENS,
@@ -218,6 +222,40 @@ export async function generateSummary(
     main_points: normalizeMarkdown(mainPoints.text),
     recommendations: normalizeMarkdown(recommendations.text),
     services,
+    transcript,
     warnings,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Per-service write-ups                                               */
+/* ------------------------------------------------------------------ */
+
+const WRITE_UP_SYSTEM_PROMPT =
+  'You are an Innovation and Growth Specialist writing up a client meeting for your organisation\'s CRM. You are accurate, concise and never invent detail that is not in the transcript.';
+
+/**
+ * Produce the Salesforce write-up for one service. Unlike the summary sections
+ * this is a single call over the transcript: a write-up joined from several
+ * chunks would repeat its headings, so a very long transcript is truncated to
+ * the first chunk and the caller is warned.
+ */
+export async function generateServiceWriteUp(
+  transcript: string,
+  promptText: string,
+  params: GenerationParams
+): Promise<{ text: string; warnings: string[] }> {
+  const chunks = chunkText(transcript);
+  const text = await callOpenAI(
+    `${promptText}\n\nTranscript:\n${chunks[0] ?? transcript}`,
+    params,
+    WRITE_UP_SYSTEM_PROMPT
+  );
+
+  const warnings: string[] = [];
+  if (chunks.length > 1) {
+    warnings.push('The transcript was too long to write up in one pass, so this covers the first part of it only.');
+  }
+
+  return { text: normalizeMarkdown(text), warnings };
 }
