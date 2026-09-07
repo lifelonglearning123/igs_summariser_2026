@@ -91,7 +91,7 @@ export const SERVICES = [
   },
   {
     key: 'gbip',
-    label: 'GBIP / BIP (Global Business Innovation Programme)',
+    label: 'GBIP / GIP (Global Business Innovation Programme)',
     guidance:
       'Covered only when the transcript mentions GBIP or GIP, the Global Business Innovation Programme, by acronym or by name.',
   },
