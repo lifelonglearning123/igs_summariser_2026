@@ -1,0 +1,265 @@
+{
+  "version": 1,
+  "updated": "2026-09-05",
+  "clients": [
+    {
+      "id": "northgate-coatings",
+      "name": "Northgate Coatings Ltd",
+      "igs_owner": "Jordan H",
+      "last_contact": "2026-08-14",
+      "meeting_count": 4,
+      "is_business": true,
+      "sme_status": "small",
+      "headcount": 38,
+      "turnover_band": "£4m-£6m",
+      "sectors": ["advanced_manufacturing", "clean_energy"],
+      "tech_tags": ["coatings_surface", "advanced_materials", "marine", "renewables"],
+      "trl_band": "TRL 5-6",
+      "grant_history": ["Innovate UK Smart Grant 2024 - unsuccessful", "Innovation Loan enquiry 2025 - not pursued"],
+      "grant_appetite": "keen",
+      "match_funding_capacity": "strong",
+      "named_partners": ["University of Strathclyde - coatings characterisation", "Fairhaven Marine (prospective customer)"],
+      "live_bids": [],
+      "notes": "Develops low-friction anti-corrosion coatings for offshore wind turbine bearings and subsea fixings. Wants to move from pilot line to qualified production. Has cash reserves and has said they would fund a match on a large collaborative project.",
+      "evidence": [
+        {
+          "field": "tech_tags",
+          "quote": "We're developing a low-friction coating for offshore turbine bearings - the current products fail on salt-water ingress after about eighteen months.",
+          "meeting_date": "2026-08-14"
+        },
+        {
+          "field": "match_funding_capacity",
+          "quote": "If the project were the right one we could put in three or four hundred thousand of our own money over two years.",
+          "meeting_date": "2026-08-14"
+        },
+        {
+          "field": "named_partners",
+          "quote": "Strathclyde have been doing our salt-spray testing for two years now. Fairhaven Marine have looked at the samples but we've not got anything formal with them.",
+          "meeting_date": "2026-06-02"
+        },
+        {
+          "field": "grant_appetite",
+          "quote": "We were gutted about the Smart application but we'd go again with the right consortium.",
+          "meeting_date": "2026-06-02"
+        }
+      ]
+    },
+    {
+      "id": "vellum-bioelectronics",
+      "name": "Vellum Bioelectronics Ltd",
+      "igs_owner": "Casey M",
+      "last_contact": "2026-07-29",
+      "meeting_count": 2,
+      "is_business": true,
+      "sme_status": "micro",
+      "headcount": 9,
+      "turnover_band": "pre-revenue",
+      "sectors": ["life_sciences"],
+      "tech_tags": ["bioelectronics", "biomaterials", "medical_devices", "sensors"],
+      "trl_band": "TRL 3-4",
+      "grant_history": ["Innovate UK Biomedical Catalyst 2025 - awarded £312k"],
+      "grant_appetite": "keen",
+      "match_funding_capacity": "unknown",
+      "named_partners": ["Queen Elizabeth Hospital NHS Trust - clinical advisor", "Cambridge spin-out incubator"],
+      "live_bids": [],
+      "notes": "Building a biocompatible electrode coating for implantable neural interfaces. Spun out of a university but is a trading company. Clinical advisor at an NHS trust attends their advisory board.",
+      "evidence": [
+        {
+          "field": "tech_tags",
+          "quote": "The core of it is a biocompatible interface layer that stops the scarring you normally get around a chronic implant.",
+          "meeting_date": "2026-07-29"
+        },
+        {
+          "field": "named_partners",
+          "quote": "We've got a consultant from the Queen Elizabeth on our advisory board - she sits in on the quarterly reviews.",
+          "meeting_date": "2026-07-29"
+        },
+        {
+          "field": "match_funding_capacity",
+          "quote": "Cash is the constraint. The Catalyst money runs to next summer and after that we need either revenue or another round.",
+          "meeting_date": "2026-04-16"
+        }
+      ]
+    },
+    {
+      "id": "harbrook-composites",
+      "name": "Harbrook Composites Ltd",
+      "igs_owner": "Jordan H",
+      "last_contact": "2026-08-27",
+      "meeting_count": 6,
+      "is_business": true,
+      "sme_status": "medium",
+      "headcount": 140,
+      "turnover_band": "£18m-£22m",
+      "sectors": ["advanced_manufacturing", "defence"],
+      "tech_tags": ["composites", "advanced_materials", "aerospace", "sustainable_materials"],
+      "trl_band": "TRL 6-7",
+      "grant_history": ["ATI Programme 2023 - partner, £480k", "Innovate UK CR&D 2025 - lead, unsuccessful"],
+      "grant_appetite": "open",
+      "match_funding_capacity": "strong",
+      "named_partners": ["Meridian Aerostructures (Tier 1 customer)", "National Composites Centre"],
+      "live_bids": ["ATI Programme round closing November 2026"],
+      "notes": "Recyclable thermoplastic composite structures for aerospace interiors. Experienced consortium lead. Bid team is one person and is already committed to the ATI round this autumn.",
+      "evidence": [
+        {
+          "field": "tech_tags",
+          "quote": "The whole pitch is a thermoplastic laminate you can actually reprocess at end of life, which nobody in interiors is doing at volume.",
+          "meeting_date": "2026-08-27"
+        },
+        {
+          "field": "live_bids",
+          "quote": "Honestly, between now and Christmas Dan is fully on the ATI bid. I couldn't put him on anything else.",
+          "meeting_date": "2026-08-27"
+        },
+        {
+          "field": "named_partners",
+          "quote": "Meridian take about sixty percent of our output and they've co-signed work packages with us before.",
+          "meeting_date": "2026-05-19"
+        }
+      ]
+    },
+    {
+      "id": "sable-photonics",
+      "name": "Sable Photonics Ltd",
+      "igs_owner": "Casey M",
+      "last_contact": "2026-06-11",
+      "meeting_count": 3,
+      "is_business": true,
+      "sme_status": "small",
+      "headcount": 24,
+      "turnover_band": "£2m-£3m",
+      "sectors": ["digital_and_technologies"],
+      "tech_tags": ["metamaterials", "photonics", "connectivity_rf", "semiconductors"],
+      "trl_band": "TRL 4-5",
+      "grant_history": [],
+      "grant_appetite": "reluctant",
+      "match_funding_capacity": "possible",
+      "named_partners": ["Two unnamed satcom integrators"],
+      "live_bids": [],
+      "notes": "Metasurface antenna elements for satcom terminals. Founder has been burned by the time cost of a previous grant application elsewhere and is sceptical of anything with a long form.",
+      "evidence": [
+        {
+          "field": "tech_tags",
+          "quote": "Our metasurface layer replaces the phase shifter stack - it's the whole reason the terminal can be flat.",
+          "meeting_date": "2026-06-11"
+        },
+        {
+          "field": "grant_appetite",
+          "quote": "I spent six weeks on a grant application at my last company and got nothing for it. I'd need a very good reason to do that again.",
+          "meeting_date": "2026-06-11"
+        },
+        {
+          "field": "named_partners",
+          "quote": "There are two integrators evaluating our samples but I can't name them, we're under NDA.",
+          "meeting_date": "2026-03-04"
+        }
+      ]
+    },
+    {
+      "id": "tolmere-alloys",
+      "name": "Tolmere Alloys Ltd",
+      "igs_owner": "Jordan H",
+      "last_contact": "2025-11-20",
+      "meeting_count": 2,
+      "is_business": true,
+      "sme_status": "small",
+      "headcount": 52,
+      "turnover_band": "£7m-£9m",
+      "sectors": ["advanced_manufacturing", "clean_energy"],
+      "tech_tags": ["metals_alloys", "advanced_materials", "process_engineering"],
+      "trl_band": "TRL 6",
+      "grant_history": [],
+      "grant_appetite": "unknown",
+      "match_funding_capacity": "unknown",
+      "named_partners": [],
+      "live_bids": [],
+      "notes": "Nickel superalloy castings for high-temperature and extreme-environment applications, mainly energy and industrial gas turbines. Not spoken to since late 2025.",
+      "evidence": [
+        {
+          "field": "tech_tags",
+          "quote": "Everything we cast is going into something that runs hot - turbine hot sections, mostly, and some downhole tooling.",
+          "meeting_date": "2025-11-20"
+        }
+      ]
+    },
+    {
+      "id": "ashcroft-materials-institute",
+      "name": "Ashcroft Institute for Materials Research",
+      "igs_owner": "Casey M",
+      "last_contact": "2026-05-08",
+      "meeting_count": 1,
+      "is_business": false,
+      "sme_status": "unknown",
+      "sectors": ["advanced_manufacturing"],
+      "tech_tags": ["advanced_materials", "nanomaterials", "coatings_surface"],
+      "trl_band": "TRL 2-4",
+      "grant_history": ["EPSRC programme grant"],
+      "grant_appetite": "keen",
+      "match_funding_capacity": "unknown",
+      "named_partners": [],
+      "live_bids": [],
+      "notes": "Independent research and technology organisation. Strong materials characterisation capability, often approached to join consortia. Cannot lead a business-led competition.",
+      "evidence": [
+        {
+          "field": "is_business",
+          "quote": "We're an RTO - we can only ever be a partner on these, never the lead.",
+          "meeting_date": "2026-05-08"
+        }
+      ]
+    },
+    {
+      "id": "quenby-care-systems",
+      "name": "Quenby Care Systems Ltd",
+      "igs_owner": "Casey M",
+      "last_contact": "2026-08-05",
+      "meeting_count": 3,
+      "is_business": true,
+      "sme_status": "small",
+      "headcount": 31,
+      "turnover_band": "£1m-£2m",
+      "sectors": ["life_sciences", "digital_and_technologies"],
+      "tech_tags": ["digital_health", "software_platform", "ai_ml"],
+      "trl_band": "TRL 8",
+      "grant_history": ["NHS SBRI 2024 - awarded £150k"],
+      "grant_appetite": "keen",
+      "match_funding_capacity": "possible",
+      "named_partners": ["Three NHS community trusts"],
+      "live_bids": [],
+      "notes": "Rostering and remote monitoring software for domiciliary care providers. No hardware, no materials work.",
+      "evidence": [
+        {
+          "field": "tech_tags",
+          "quote": "It's pure software - we integrate with whatever monitoring kit the trust already has.",
+          "meeting_date": "2026-08-05"
+        }
+      ]
+    },
+    {
+      "id": "ledbury-payments",
+      "name": "Ledbury Payments Ltd",
+      "igs_owner": "Jordan H",
+      "last_contact": "2026-07-02",
+      "meeting_count": 2,
+      "is_business": true,
+      "sme_status": "small",
+      "headcount": 18,
+      "turnover_band": "£3m-£4m",
+      "sectors": ["financial_services"],
+      "tech_tags": ["software_platform", "cyber_security", "data_analytics"],
+      "trl_band": "TRL 9",
+      "grant_history": [],
+      "grant_appetite": "open",
+      "match_funding_capacity": "possible",
+      "named_partners": [],
+      "live_bids": [],
+      "notes": "Cross-border payment reconciliation for SME exporters. Growth is a sales and funding question, not an R&D one.",
+      "evidence": [
+        {
+          "field": "sectors",
+          "quote": "We're not really an R&D business any more - the platform works, it's about distribution now.",
+          "meeting_date": "2026-07-02"
+        }
+      ]
+    }
+  ]
+}

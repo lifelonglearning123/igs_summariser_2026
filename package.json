@@ -4,9 +4,9 @@
   "description": "Business Coach Summary Transcriber - Modern Web App",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 127.0.0.1",
     "lint": "next lint",
     "vercel-build": "next build"
   },

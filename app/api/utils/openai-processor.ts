@@ -3,7 +3,7 @@ import { chunkText } from './file-processor';
 import { GBIP_TRIGGER_PATTERN, SERVICES } from '@/lib/prompts';
 import type { ServiceAssessment, ServiceAssessments, SummaryResponse } from '@/lib/summary-types';
 
-const MODEL = 'gpt-4o';
+export const MODEL = 'gpt-4o';
 const SYSTEM_PROMPT = 'You are the best business coach summary transcriber.';
 const MAX_OUTPUT_TOKENS = 1500;
 
@@ -21,7 +21,7 @@ export interface SummaryPrompts {
 
 let cachedClient: OpenAI | null = null;
 
-function getOpenAIClient(): OpenAI {
+export function getOpenAIClient(): OpenAI {
   if (!cachedClient) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {

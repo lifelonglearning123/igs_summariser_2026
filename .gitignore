@@ -16,3 +16,10 @@ __pycache__/
 
 # Build caches
 tsconfig.tsbuildinfo
+
+# Local inbox database: real client correspondence, never committed
+/data/
+
+# Screenshots with real client or internal data
+/sample.png
+/servcies.png
