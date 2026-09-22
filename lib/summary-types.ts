@@ -1,8 +1,20 @@
-import type { ServiceKey } from './prompts';
+import type { ServiceKey } from './services';
+
+/**
+ * How far the meeting covered a support. The model judges what was said, not
+ * whether the client could benefit.
+ */
+export type ServiceRelevance = 'discussed' | 'mentioned' | 'not_discussed';
 
 export interface ServiceAssessment {
-  covered: boolean;
+  relevance: ServiceRelevance;
+  /** One plain-English sentence for the coach. */
   reason: string;
+  /**
+   * A short quote from the transcript backing the verdict. Empty when there is
+   * none, or when the model's quote could not be found in the transcript.
+   */
+  evidence: string;
 }
 
 export type ServiceAssessments = Record<ServiceKey, ServiceAssessment>;
@@ -13,7 +25,7 @@ export interface SummaryResponse {
   main_points: string;
   /** Markdown for the "Recommendations" section. */
   recommendations: string;
-  /** AI assessment of which services the meeting covered; null if it failed. */
+  /** AI assessment of the meeting against every Salesforce support; null if it failed. */
   services: ServiceAssessments | null;
   /**
    * The transcript text the summary was built from, so the dashboard can ask

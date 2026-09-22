@@ -15,6 +15,21 @@ A Business Coach Summary Transcriber and funding-opportunity matcher, built with
 🎨 **Professional Design** - Clean, intuitive dashboard with gradient branding
 📬 **Funding Inbox** - One Sync button reads your Outlook mail and returns a de-duplicated list sorted by when you have to decide
 🎯 **Opportunity Matcher** - Turn one funding email into a ranked list of which clients to contact and why
+🗂️ **Salesforce Supports** - Every transcript is checked against the 13 supports on the Salesforce list, with a quote from the meeting as evidence
+
+## Salesforce Supports
+
+After a summary, the dashboard sorts the 13 Salesforce supports into three groups, fixed by what the AI found so nothing moves while you tick:
+
+- **Suggested to record** - the meeting spent real time on it. These are ticked for you.
+- **Mentioned in passing** - it came up briefly. Your call; not ticked.
+- **Not discussed** - folded away, but you can still tick one the transcript missed.
+
+Each suggestion carries a one-line reason and a short quote from the transcript. Quotes are checked against the transcript before they are shown, so a quote the model invented is dropped rather than displayed. A support named outright (GBIP, GIP, Invest-Ability, Women in Innovation...) is never left in "Not discussed", however the model judged it.
+
+Tick what you will record, then write each one up, or use **Write up all** in the footer. Each support has its own write-up prompt, editable under Prompts. Only ticked supports go into the copy and the Word export.
+
+The list lives in `lib/services.ts`: the Salesforce name, the line the coach sees, the classifier's guidance, the name patterns and the default write-up prompt, all in one entry per support. To add or retire a support, edit that list.
 
 ## Funding Inbox
 

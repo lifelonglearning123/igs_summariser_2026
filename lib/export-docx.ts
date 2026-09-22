@@ -1,6 +1,6 @@
 import { AlignmentType, Document, HeadingLevel, LevelFormat, Packer, Paragraph, TextRun } from 'docx';
 import type { Block, Run, SummaryDocumentInput } from './summary-format';
-import { formatGeneratedAt } from './summary-format';
+import { formatGeneratedAt, NO_SUPPORTS_TEXT, SUPPORTS_HEADING } from './summary-format';
 
 const NUMBERED_REFERENCE = 'summary-numbered';
 
@@ -80,17 +80,10 @@ export async function buildSummaryDocx(input: SummaryDocumentInput): Promise<Blo
     ...blocksToParagraphs(input.mainPoints, numberedInstance),
     new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun('Recommendations')], spacing: { before: 360, after: 120 } }),
     ...blocksToParagraphs(input.recommendations, numberedInstance),
-    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun('Services Covered')], spacing: { before: 360, after: 120 } }),
-    ...input.services.map(
-      (service) =>
-        new Paragraph({
-          children: [
-            new TextRun({ text: service.selected ? '☑ ' : '☐ ' }),
-            new TextRun({ text: service.label, bold: service.selected }),
-          ],
-          spacing: { after: 60 },
-        })
-    ),
+    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(SUPPORTS_HEADING)], spacing: { before: 360, after: 120 } }),
+    ...(input.supports.length
+      ? input.supports.map((label) => new Paragraph({ children: [new TextRun(label)], bullet: { level: 0 }, spacing: { after: 60 } }))
+      : [new Paragraph({ children: [new TextRun({ text: NO_SUPPORTS_TEXT, italics: true })], spacing: { after: 60 } })]),
     ...input.writeUps.flatMap((writeUp) => [
       new Paragraph({
         heading: HeadingLevel.HEADING_1,

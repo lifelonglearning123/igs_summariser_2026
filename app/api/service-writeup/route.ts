@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateServiceWriteUp } from '../utils/openai-processor';
-import { DEFAULT_WRITE_UP_PROMPTS, isServiceKey } from '@/lib/prompts';
+import { DEFAULT_WRITE_UP_PROMPTS, isServiceKey } from '@/lib/services';
 import type { ServiceWriteUpResponse } from '@/lib/summary-types';
 
 // One model call over the whole transcript; allow up to a minute on serverless hosts.

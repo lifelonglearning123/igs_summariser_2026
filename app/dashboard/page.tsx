@@ -15,7 +15,7 @@ import SummaryResults from '@/components/summary-results';
 import ParameterControls, { DEFAULT_PARAMETERS, GenerationParameters } from '@/components/parameter-controls';
 import PromptEditor, { DEFAULT_PROMPTS, isCustomised, SummaryPrompts } from '@/components/prompt-editor';
 import FileUploadZone from '@/components/file-upload-zone';
-import { SERVICES, SERVICE_SHORT_LABELS, ServiceKey } from '@/lib/prompts';
+import { SERVICES, ServiceKey } from '@/lib/services';
 import type { ServiceWriteUpResponse, ServiceWriteUps, SummaryResponse } from '@/lib/summary-types';
 import {
   parseSummaryMarkdown,
@@ -183,7 +183,9 @@ export default function DashboardPage() {
 
       const data: SummaryResponse = await processSummary(formData);
       setResults(data);
-      setSelectedServices(SERVICES.filter((service) => data.services?.[service.key]?.covered).map((service) => service.key));
+      setSelectedServices(
+        SERVICES.filter((service) => data.services?.[service.key]?.relevance === 'discussed').map((service) => service.key)
+      );
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to process summary. Please try again.');
     } finally {
@@ -238,6 +240,14 @@ export default function DashboardPage() {
     [results, prompts, parameters]
   );
 
+  /** Write up every ticked support that doesn't already have a write-up on the way. */
+  const handleGenerateAllWriteUps = useCallback(() => {
+    for (const service of selectedServices) {
+      const status = writeUps[service]?.status;
+      if (status !== 'ready' && status !== 'loading') handleGenerateWriteUp(service);
+    }
+  }, [selectedServices, writeUps, handleGenerateWriteUp]);
+
   const handleCopyWriteUp = useCallback(
     async (service: ServiceKey) => {
       const writeUp = writeUps[service];
@@ -262,11 +272,11 @@ export default function DashboardPage() {
       generatedAt: new Date(),
       mainPoints: parseSummaryMarkdown(results.main_points),
       recommendations: parseSummaryMarkdown(results.recommendations),
-      services: SERVICES.map((service) => ({ label: service.label, selected: selectedServices.includes(service.key) })),
+      supports: SERVICES.filter((service) => selectedServices.includes(service.key)).map((service) => service.label),
       writeUps: SERVICES.flatMap((service) => {
         const writeUp = writeUps[service.key];
-        return writeUp?.status === 'ready'
-          ? [{ label: SERVICE_SHORT_LABELS[service.key], blocks: parseSummaryMarkdown(writeUp.text) }]
+        return writeUp?.status === 'ready' && selectedServices.includes(service.key)
+          ? [{ label: service.shortLabel, blocks: parseSummaryMarkdown(writeUp.text) }]
           : [];
       }),
     };
@@ -372,6 +382,7 @@ export default function DashboardPage() {
                 onServiceToggle={handleServiceToggle}
                 writeUps={writeUps}
                 onGenerateWriteUp={handleGenerateWriteUp}
+                onGenerateAllWriteUps={handleGenerateAllWriteUps}
                 onCopyWriteUp={handleCopyWriteUp}
                 copiedWriteUp={copiedWriteUp}
                 onCopy={handleCopy}

@@ -123,7 +123,8 @@ export interface SummaryDocumentInput {
   generatedAt: Date;
   mainPoints: Block[];
   recommendations: Block[];
-  services: { label: string; selected: boolean }[];
+  /** The Salesforce supports the coach ticked, in list order. */
+  supports: string[];
   /** Salesforce write-ups the coach generated, in service order. */
   writeUps: SummaryWriteUp[];
 }
@@ -155,8 +156,11 @@ export function blocksToPlainText(blocks: Block[]): string {
   return lines.join('\n');
 }
 
+export const SUPPORTS_HEADING = 'Salesforce Supports to Record';
+export const NO_SUPPORTS_TEXT = 'None selected';
+
 export function summaryToPlainText(input: SummaryDocumentInput): string {
-  const services = input.services.map((s) => `${s.selected ? '[x]' : '[ ]'} ${s.label}`).join('\n');
+  const supports = input.supports.length ? input.supports.map((label) => `• ${label}`).join('\n') : NO_SUPPORTS_TEXT;
   const sections = [
     'MEETING SUMMARY',
     `Generated: ${formatGeneratedAt(input.generatedAt)}`,
@@ -167,8 +171,8 @@ export function summaryToPlainText(input: SummaryDocumentInput): string {
     'RECOMMENDATIONS',
     blocksToPlainText(input.recommendations),
     '',
-    'SERVICES COVERED',
-    services,
+    SUPPORTS_HEADING.toUpperCase(),
+    supports,
   ];
 
   for (const writeUp of input.writeUps) {
@@ -220,9 +224,9 @@ export function blocksToHtml(blocks: Block[]): string {
 }
 
 export function summaryToHtml(input: SummaryDocumentInput): string {
-  const services = input.services
-    .map((s) => `<li>${s.selected ? '&#9745;' : '&#9744;'} ${escapeHtml(s.label)}</li>`)
-    .join('');
+  const supports = input.supports.length
+    ? `<ul>${input.supports.map((label) => `<li>${escapeHtml(label)}</li>`).join('')}</ul>`
+    : `<p>${NO_SUPPORTS_TEXT}</p>`;
   return [
     '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.4">',
     '<h2>Meeting Summary</h2>',
@@ -231,8 +235,8 @@ export function summaryToHtml(input: SummaryDocumentInput): string {
     blocksToHtml(input.mainPoints),
     '<h3>Recommendations</h3>',
     blocksToHtml(input.recommendations),
-    '<h3>Services Covered</h3>',
-    `<ul>${services}</ul>`,
+    `<h3>${SUPPORTS_HEADING}</h3>`,
+    supports,
     ...input.writeUps.flatMap((writeUp) => [
       `<h3>${escapeHtml(writeUp.label)} Write-up</h3>`,
       blocksToHtml(writeUp.blocks),

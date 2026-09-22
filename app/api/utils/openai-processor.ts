@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
 import { chunkText } from './file-processor';
-import { GBIP_TRIGGER_PATTERN, SERVICES } from '@/lib/prompts';
-import type { ServiceAssessment, ServiceAssessments, SummaryResponse } from '@/lib/summary-types';
+import { SERVICES } from '@/lib/services';
+import type { ServiceAssessment, ServiceAssessments, ServiceRelevance, SummaryResponse } from '@/lib/summary-types';
 
 export const MODEL = 'gpt-4o';
 const SYSTEM_PROMPT = 'You are the best business coach summary transcriber.';
@@ -93,15 +93,22 @@ function normalizeMarkdown(text: string): string {
 /* Service classification                                              */
 /* ------------------------------------------------------------------ */
 
+const RELEVANCE_LEVELS: ServiceRelevance[] = ['discussed', 'mentioned', 'not_discussed'];
+
 const ASSESSMENT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['covered', 'reason'],
+  required: ['relevance', 'reason', 'evidence'],
   properties: {
-    covered: { type: 'boolean' },
+    relevance: { type: 'string', enum: RELEVANCE_LEVELS },
     reason: {
       type: 'string',
-      description: 'One sentence citing the evidence in the transcript, or explaining why the service was not covered.',
+      description: 'One plain-English sentence for the coach saying what was said about this support, or that it did not come up.',
+    },
+    evidence: {
+      type: 'string',
+      description:
+        'One continuous verbatim quote of under 25 words from the transcript, copied exactly with no ellipses. Empty string when the support was not discussed.',
     },
   },
 };
@@ -116,10 +123,16 @@ const SERVICES_SCHEMA = {
 function buildClassificationPrompt(transcript: string): string {
   const serviceList = SERVICES.map((service, index) => `${index + 1}. ${service.label}: ${service.guidance}`).join('\n');
   return [
-    'You classify business coaching meeting transcripts against the services an Innovation and Growth Specialist (IGS) can record the meeting under.',
-    'For each service decide whether this meeting covered it, and give a one-sentence reason that cites the evidence from the transcript.',
+    'You read a business coaching meeting transcript and decide, for each Salesforce support an Innovation and Growth Specialist (IGS) can record a meeting against, how far this meeting covered it.',
     '',
-    'Services:',
+    'For each support choose one:',
+    "- discussed: the meeting spent real time on it. The coach gave advice on it, explored the client's fit or eligibility, worked on an application, or agreed next steps for it.",
+    '- mentioned: it came up in passing or was signposted without being worked on.',
+    '- not_discussed: the transcript does not cover it.',
+    '',
+    "Judge what was said in the meeting, not what the client might benefit from. Never infer a person's gender, ethnicity or other personal characteristics from their name or voice.",
+    '',
+    'Supports:',
     serviceList,
     '',
     'Transcript:',
@@ -128,17 +141,51 @@ function buildClassificationPrompt(transcript: string): string {
 }
 
 function isAssessment(value: unknown): value is ServiceAssessment {
+  const candidate = value as ServiceAssessment;
   return (
     typeof value === 'object' &&
     value !== null &&
-    typeof (value as ServiceAssessment).covered === 'boolean' &&
-    typeof (value as ServiceAssessment).reason === 'string'
+    RELEVANCE_LEVELS.includes(candidate.relevance) &&
+    typeof candidate.reason === 'string' &&
+    typeof candidate.evidence === 'string'
   );
 }
 
+/** Lower-case and reduce to letters, digits and single spaces, so a quote survives punctuation and line-break differences. */
+function normaliseForMatch(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9£$€%]+/g, ' ')
+    .trim();
+}
+
+/** Keep the model's quote only if it really is in the transcript: a made-up quote is worse than none. */
+function verifiedQuote(quote: string, normalisedTranscript: string): string {
+  const needle = normaliseForMatch(quote);
+  return needle.length >= 8 && normalisedTranscript.includes(needle) ? quote.trim() : '';
+}
+
+/** The sentence around a match, cut to the words either side of it when the sentence runs on. */
+function quoteAround(transcript: string, match: RegExpExecArray): string {
+  const matchEnd = match.index + match[0].length;
+  const start = transcript.slice(0, match.index).search(/[^.!?\n]*$/);
+  const endOffset = transcript.slice(matchEnd).search(/[.!?\n]/);
+  const end = endOffset === -1 ? transcript.length : matchEnd + endOffset + 1;
+
+  const words = transcript.slice(start, end).trim().split(/\s+/);
+  if (words.length <= 30) return words.join(' ');
+
+  const matchWord = transcript.slice(start, match.index).trim().split(/\s+/).filter(Boolean).length;
+  const from = Math.max(0, matchWord - 12);
+  const to = Math.min(words.length, matchWord + 13);
+  return `${from > 0 ? '… ' : ''}${words.slice(from, to).join(' ')}${to < words.length ? ' …' : ''}`;
+}
+
 /**
- * Ask the model which services the meeting covered. GBIP is additionally
- * forced on when the transcript contains the GBIP / GIP trigger words.
+ * Ask the model how far the meeting covered each Salesforce support. A support
+ * named outright in the transcript (GBIP, Women in Innovation...) is never
+ * left as "not discussed": the model may miss a name, so it is raised to
+ * "mentioned" and shown with the sentence it appears in, for the coach to judge.
  */
 export async function assessServices(transcript: string): Promise<ServiceAssessments> {
   const openai = getOpenAIClient();
@@ -151,7 +198,7 @@ export async function assessServices(transcript: string): Promise<ServiceAssessm
       { role: 'user', content: buildClassificationPrompt(firstChunk ?? transcript) },
     ],
     temperature: 0,
-    max_tokens: 600,
+    max_tokens: 3000,
     response_format: {
       type: 'json_schema',
       json_schema: { name: 'service_assessment', strict: true, schema: SERVICES_SCHEMA },
@@ -164,23 +211,31 @@ export async function assessServices(transcript: string): Promise<ServiceAssessm
   }
 
   const parsed = JSON.parse(raw) as Record<string, unknown>;
+  const normalisedTranscript = normaliseForMatch(transcript);
   const assessments = {} as ServiceAssessments;
+
   for (const service of SERVICES) {
     const value = parsed[service.key];
     if (!isAssessment(value)) {
       throw new Error(`Classification response missing "${service.key}"`);
     }
-    assessments[service.key] = value;
-  }
 
-  const trigger = GBIP_TRIGGER_PATTERN.exec(transcript);
-  if (trigger) {
-    assessments.gbip = {
-      covered: true,
-      reason: assessments.gbip.covered
-        ? assessments.gbip.reason
-        : `The transcript mentions "${trigger[0].trim()}" directly.`,
+    const assessment: ServiceAssessment = {
+      relevance: value.relevance,
+      reason: value.reason,
+      evidence: value.relevance === 'not_discussed' ? '' : verifiedQuote(value.evidence, normalisedTranscript),
     };
+
+    const named = service.namedBy?.exec(transcript);
+    if (named) {
+      if (assessment.relevance === 'not_discussed') {
+        assessment.relevance = 'mentioned';
+        assessment.reason = `${service.shortLabel} is named in the transcript.`;
+      }
+      assessment.evidence = assessment.evidence || quoteAround(transcript, named);
+    }
+
+    assessments[service.key] = assessment;
   }
 
   return assessments;
@@ -215,7 +270,7 @@ export async function generateSummary(
     );
   }
   if (!services) {
-    warnings.push('Service suggestions could not be generated for this transcript. Please select the services manually.');
+    warnings.push('Salesforce support suggestions could not be generated for this transcript. Please tick the supports manually.');
   }
 
   return {

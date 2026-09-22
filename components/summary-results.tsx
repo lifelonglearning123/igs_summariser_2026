@@ -1,21 +1,11 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  AlertCircle,
-  Check,
-  ClipboardCheck,
-  Copy,
-  Download,
-  FileText,
-  Lightbulb,
-  ListChecks,
-  RefreshCw,
-  Sparkles,
-} from 'lucide-react';
+import { AlertCircle, Check, ClipboardCheck, Copy, Download, FileText, Lightbulb, RefreshCw } from 'lucide-react';
 import SummaryBlocks from '@/components/summary-blocks';
+import SalesforceSupports from '@/components/salesforce-supports';
 import { formatGeneratedAt, parseSummaryMarkdown } from '@/lib/summary-format';
-import { SERVICES, SERVICE_SHORT_LABELS, ServiceKey } from '@/lib/prompts';
+import { SERVICES, ServiceKey } from '@/lib/services';
 import type { ServiceWriteUps, SummaryResponse } from '@/lib/summary-types';
 
 interface SummaryResultsProps {
@@ -24,6 +14,7 @@ interface SummaryResultsProps {
   onServiceToggle: (service: ServiceKey) => void;
   writeUps: ServiceWriteUps;
   onGenerateWriteUp: (service: ServiceKey) => void;
+  onGenerateAllWriteUps: () => void;
   onCopyWriteUp: (service: ServiceKey) => void;
   copiedWriteUp: ServiceKey | null;
   onCopy: () => void;
@@ -38,6 +29,7 @@ export default function SummaryResults({
   onServiceToggle,
   writeUps,
   onGenerateWriteUp,
+  onGenerateAllWriteUps,
   onCopyWriteUp,
   copiedWriteUp,
   onCopy,
@@ -48,8 +40,9 @@ export default function SummaryResults({
   const mainPoints = useMemo(() => parseSummaryMarkdown(results.main_points), [results.main_points]);
   const recommendations = useMemo(() => parseSummaryMarkdown(results.recommendations), [results.recommendations]);
 
-  // Keep the write-up panels in the same order as the service checkboxes.
-  const writeUpPanels = SERVICES.filter((service) => writeUps[service.key]);
+  // Write-ups follow the ticks, in list order. Unticking hides a write-up
+  // rather than discarding it, so ticking again brings it straight back.
+  const writeUpPanels = SERVICES.filter((service) => writeUps[service.key] && selectedServices.includes(service.key));
 
   return (
     <div className="space-y-6">
@@ -87,106 +80,28 @@ export default function SummaryResults({
         </CardContent>
       </Card>
 
-      {/* Services covered */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ListChecks className="h-5 w-5 text-indigo-600" />
-            Services covered
-          </CardTitle>
-          <CardDescription>
-            {results.services
-              ? 'The AI has pre-selected the services this meeting covered. Adjust the selection if needed, then write up any service you need to record in Salesforce.'
-              : 'Select the service or services this meeting covered, then write up any service you need to record in Salesforce.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-3">
-            {SERVICES.map((service) => {
-              const isSelected = selectedServices.includes(service.key);
-              const assessment = results.services?.[service.key];
-              const writeUp = writeUps[service.key];
-              const isGenerating = writeUp?.status === 'loading';
-
-              return (
-                <div
-                  key={service.key}
-                  className={`flex h-full flex-col gap-2 rounded-lg border p-3 text-sm transition-colors ${
-                    isSelected ? 'border-indigo-400 bg-indigo-50 text-indigo-950' : 'border-gray-200 bg-white text-gray-700'
-                  }`}
-                >
-                  <label className="flex cursor-pointer items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => onServiceToggle(service.key)}
-                      className="mt-0.5 h-4 w-4 flex-shrink-0 accent-indigo-600"
-                    />
-                    <span className="font-medium leading-5">{service.label}</span>
-                  </label>
-
-                  {assessment && (
-                    <span className="flex items-start gap-1.5 pl-7 text-xs leading-5 text-gray-600">
-                      <Sparkles
-                        className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${
-                          assessment.covered ? 'text-indigo-500' : 'text-gray-400'
-                        }`}
-                      />
-                      <span>
-                        <span className="font-medium text-gray-700">
-                          {assessment.covered ? 'Suggested: yes.' : 'Suggested: no.'}
-                        </span>{' '}
-                        {assessment.reason}
-                      </span>
-                    </span>
-                  )}
-
-                  <div className="mt-auto pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onGenerateWriteUp(service.key)}
-                      disabled={isGenerating}
-                      className="w-full gap-1.5 text-xs"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
-                          Writing up...
-                        </>
-                      ) : writeUp?.status === 'ready' ? (
-                        <>
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          Regenerate write-up
-                        </>
-                      ) : (
-                        <>
-                          <ClipboardCheck className="h-3.5 w-3.5" />
-                          Write up for Salesforce
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      <SalesforceSupports
+        assessments={results.services}
+        selected={selectedServices}
+        onToggle={onServiceToggle}
+        writeUps={writeUps}
+        onGenerateWriteUp={onGenerateWriteUp}
+        onGenerateAll={onGenerateAllWriteUps}
+      />
 
       {/* Salesforce write-ups */}
       {writeUpPanels.map((service) => {
         const writeUp = writeUps[service.key]!;
         return (
-          <Card key={service.key}>
+          <Card key={service.key} id={`write-up-${service.key}`} className="scroll-mt-4">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-emerald-600" />
-                {SERVICE_SHORT_LABELS[service.key]} write-up
+                {service.shortLabel} write-up
               </CardTitle>
               <CardDescription>
                 {writeUp.status === 'ready'
-                  ? `Ready to paste into Salesforce. Generated ${formatGeneratedAt(
+                  ? `Ready to paste into Salesforce under "${service.label}". Generated ${formatGeneratedAt(
                       writeUp.generatedAt
                     )} — check it before saving.`
                   : writeUp.status === 'loading'

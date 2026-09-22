@@ -2,14 +2,8 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronDown, ChevronUp, FileEdit, RotateCcw } from 'lucide-react';
-import {
-  DEFAULT_MAIN_POINTS_PROMPT,
-  DEFAULT_RECOMMENDATIONS_PROMPT,
-  DEFAULT_WRITE_UP_PROMPTS,
-  SERVICES,
-  SERVICE_SHORT_LABELS,
-  ServiceKey,
-} from '@/lib/prompts';
+import { DEFAULT_MAIN_POINTS_PROMPT, DEFAULT_RECOMMENDATIONS_PROMPT } from '@/lib/prompts';
+import { DEFAULT_WRITE_UP_PROMPTS, SERVICES, ServiceKey } from '@/lib/services';
 
 export interface SummaryPrompts {
   mainPoints: string;
@@ -24,11 +18,15 @@ export const DEFAULT_PROMPTS: SummaryPrompts = {
   writeUps: DEFAULT_WRITE_UP_PROMPTS,
 };
 
+function isWriteUpEdited(prompts: SummaryPrompts, service: ServiceKey): boolean {
+  return prompts.writeUps[service] !== DEFAULT_PROMPTS.writeUps[service];
+}
+
 export function isCustomised(prompts: SummaryPrompts): boolean {
   return (
     prompts.mainPoints !== DEFAULT_PROMPTS.mainPoints ||
     prompts.recommendations !== DEFAULT_PROMPTS.recommendations ||
-    SERVICES.some((service) => prompts.writeUps[service.key] !== DEFAULT_PROMPTS.writeUps[service.key])
+    SERVICES.some((service) => isWriteUpEdited(prompts, service.key))
   );
 }
 
@@ -40,7 +38,12 @@ interface PromptEditorProps {
 
 export default function PromptEditor({ prompts, onChange, disabled }: PromptEditorProps) {
   const [open, setOpen] = useState(false);
+  const [writeUpService, setWriteUpService] = useState<ServiceKey>(SERVICES[0].key);
   const customised = isCustomised(prompts);
+  const writeUpEdited = isWriteUpEdited(prompts, writeUpService);
+
+  const setWriteUpPrompt = (value: string) =>
+    onChange({ ...prompts, writeUps: { ...prompts.writeUps, [writeUpService]: value } });
 
   return (
     <Card>
@@ -96,27 +99,42 @@ export default function PromptEditor({ prompts, onChange, disabled }: PromptEdit
             />
           </div>
 
-          <div className="space-y-4 border-t border-gray-200 pt-4">
-            <p className="text-sm font-medium text-gray-700">Salesforce write-up prompts</p>
-            <p className="-mt-3 text-xs text-gray-500">
-              Used when you generate a write-up for a service from the results.
-            </p>
-            {SERVICES.map((service) => (
-              <div key={service.key} className="space-y-2">
-                <label htmlFor={`write-up-prompt-${service.key}`} className="text-sm font-medium text-gray-700">
-                  {SERVICE_SHORT_LABELS[service.key]}
-                </label>
-                <Textarea
-                  id={`write-up-prompt-${service.key}`}
-                  value={prompts.writeUps[service.key]}
-                  onChange={(event) =>
-                    onChange({ ...prompts, writeUps: { ...prompts.writeUps, [service.key]: event.target.value } })
-                  }
-                  disabled={disabled}
-                  className="min-h-56 font-mono text-xs leading-5"
-                />
-              </div>
-            ))}
+          <div className="space-y-2 border-t border-gray-200 pt-4">
+            <label htmlFor="write-up-prompt-service" className="text-sm font-medium text-gray-700">
+              Salesforce write-up prompts
+            </label>
+            <p className="text-xs text-gray-500">Each support has its own. Choose one to edit.</p>
+            <select
+              id="write-up-prompt-service"
+              value={writeUpService}
+              onChange={(event) => setWriteUpService(event.target.value as ServiceKey)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {SERVICES.map((service) => (
+                <option key={service.key} value={service.key}>
+                  {service.label}
+                  {isWriteUpEdited(prompts, service.key) ? ' (edited)' : ''}
+                </option>
+              ))}
+            </select>
+            <Textarea
+              aria-label={`Write-up prompt for ${SERVICES.find((service) => service.key === writeUpService)?.label}`}
+              value={prompts.writeUps[writeUpService]}
+              onChange={(event) => setWriteUpPrompt(event.target.value)}
+              disabled={disabled}
+              className="min-h-56 font-mono text-xs leading-5"
+            />
+            {writeUpEdited && (
+              <button
+                type="button"
+                onClick={() => setWriteUpPrompt(DEFAULT_PROMPTS.writeUps[writeUpService])}
+                disabled={disabled}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-gray-400"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset this write-up prompt
+              </button>
+            )}
           </div>
 
           <button
@@ -126,7 +144,7 @@ export default function PromptEditor({ prompts, onChange, disabled }: PromptEdit
             className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-gray-400"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            Reset to default prompts
+            Reset all prompts to default
           </button>
         </CardContent>
       )}
