@@ -102,6 +102,7 @@ const COPY_FAILED_MESSAGE = 'Could not copy to the clipboard. Please select the 
 export default function DashboardPage() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const hydrated = useAuthStore((state) => state.hydrated);
   const logout = useAuthStore((state) => state.logout);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -119,10 +120,10 @@ export default function DashboardPage() {
   const [promptsLoaded, setPromptsLoaded] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (hydrated && !user) {
       router.push('/');
     }
-  }, [user, router]);
+  }, [hydrated, user, router]);
 
   // Restore any prompt edits saved in this browser.
   useEffect(() => {

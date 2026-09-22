@@ -15,14 +15,17 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const hydrated = useAuthStore((state) => state.hydrated);
+  const hydrate = useAuthStore((state) => state.hydrate);
 
+  // Read the saved sign-in after mount, never during render, so the first
+  // client render matches the server's.
   useEffect(() => {
-    setIsLoading(false);
-  }, []);
+    hydrate();
+  }, [hydrate]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated: !!user, isLoading: !hydrated }}>
       {children}
     </AuthContext.Provider>
   );

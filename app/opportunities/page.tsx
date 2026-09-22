@@ -20,6 +20,7 @@ import type { CallSheet as CallSheetData, OpportunityParseResponse } from '@/lib
 export default function OpportunitiesPage() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const hydrated = useAuthStore((state) => state.hydrated);
   const logout = useAuthStore((state) => state.logout);
 
   const [email, setEmail] = useState('');
@@ -32,8 +33,8 @@ export default function OpportunitiesPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!user) router.push('/');
-  }, [user, router]);
+    if (hydrated && !user) router.push('/');
+  }, [hydrated, user, router]);
 
   // Bring back the register this browser was last using, so a coach working
   // through a morning's inbox loads it once rather than once per email.

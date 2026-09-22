@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS: SyncSettings = { outlookFolder: '', lookbackDays: 30 };
 export default function InboxPage() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const hydrated = useAuthStore((state) => state.hydrated);
   const logout = useAuthStore((state) => state.logout);
 
   const [items, setItems] = useState<InboxItem[]>([]);
@@ -53,8 +54,8 @@ export default function InboxPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!user) router.push('/');
-  }, [user, router]);
+    if (hydrated && !user) router.push('/');
+  }, [hydrated, user, router]);
 
   useEffect(() => {
     setRegister(loadStoredRegister());
