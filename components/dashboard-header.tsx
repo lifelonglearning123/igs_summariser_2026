@@ -14,8 +14,9 @@ interface DashboardHeaderProps {
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Summariser' },
-  { href: '/inbox', label: 'Inbox' },
-  { href: '/opportunities', label: 'Single email' },
+  // Hidden for now; the pages still work at /inbox and /opportunities.
+  // { href: '/inbox', label: 'Inbox' },
+  // { href: '/opportunities', label: 'Single email' },
 ];
 
 export default function DashboardHeader({ user, onLogout }: DashboardHeaderProps) {
