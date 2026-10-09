@@ -4,6 +4,8 @@
  * three stay consistent.
  */
 
+import { JOBS_HEADING, type JobsLine } from './jobs';
+
 export interface Run {
   text: string;
   bold: boolean;
@@ -123,6 +125,8 @@ export interface SummaryDocumentInput {
   generatedAt: Date;
   mainPoints: Block[];
   recommendations: Block[];
+  /** Jobs created and saved in FTE, as the coach confirmed them. */
+  jobs: JobsLine[];
   /** The Salesforce supports the coach ticked, in list order. */
   supports: string[];
   /** Salesforce write-ups the coach generated, in service order. */
@@ -159,6 +163,10 @@ export function blocksToPlainText(blocks: Block[]): string {
 export const SUPPORTS_HEADING = 'Salesforce Supports to Record';
 export const NO_SUPPORTS_TEXT = 'None selected';
 
+function jobsLineText(line: JobsLine): string {
+  return `${line.label}: ${line.value}${line.detail ? ` – ${line.detail}` : ''}`;
+}
+
 export function summaryToPlainText(input: SummaryDocumentInput): string {
   const supports = input.supports.length ? input.supports.map((label) => `• ${label}`).join('\n') : NO_SUPPORTS_TEXT;
   const sections = [
@@ -170,6 +178,9 @@ export function summaryToPlainText(input: SummaryDocumentInput): string {
     '',
     'RECOMMENDATIONS',
     blocksToPlainText(input.recommendations),
+    '',
+    JOBS_HEADING.toUpperCase(),
+    ...input.jobs.map((line) => `• ${jobsLineText(line)}`),
     '',
     SUPPORTS_HEADING.toUpperCase(),
     supports,
@@ -235,6 +246,15 @@ export function summaryToHtml(input: SummaryDocumentInput): string {
     blocksToHtml(input.mainPoints),
     '<h3>Recommendations</h3>',
     blocksToHtml(input.recommendations),
+    `<h3>${escapeHtml(JOBS_HEADING)}</h3>`,
+    `<ul>${input.jobs
+      .map(
+        (line) =>
+          `<li><strong>${escapeHtml(line.label)}:</strong> ${escapeHtml(line.value)}${
+            line.detail ? ` – ${escapeHtml(line.detail)}` : ''
+          }</li>`
+      )
+      .join('')}</ul>`,
     `<h3>${SUPPORTS_HEADING}</h3>`,
     supports,
     ...input.writeUps.flatMap((writeUp) => [

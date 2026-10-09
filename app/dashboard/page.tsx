@@ -26,6 +26,7 @@ import {
   SummaryDocumentInput,
 } from '@/lib/summary-format';
 import { buildSummaryDocx, summaryFileName } from '@/lib/export-docx';
+import { initialJobsFte, jobsLines, JobKind, JobsFte, JobTiming } from '@/lib/jobs';
 
 const PROMPTS_STORAGE_KEY = 'igs-summariser.prompts.v1';
 
@@ -112,6 +113,7 @@ export default function DashboardPage() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState<SummaryResponse | null>(null);
+  const [jobsFte, setJobsFte] = useState<JobsFte>(() => initialJobsFte(null));
   const [selectedServices, setSelectedServices] = useState<ServiceKey[]>([]);
   const [writeUps, setWriteUps] = useState<ServiceWriteUps>({});
   const [copiedWriteUp, setCopiedWriteUp] = useState<ServiceKey | null>(null);
@@ -184,6 +186,7 @@ export default function DashboardPage() {
 
       const data: SummaryResponse = await processSummary(formData);
       setResults(data);
+      setJobsFte(initialJobsFte(data.jobs ?? null));
       setSelectedServices(
         SERVICES.filter((service) => data.services?.[service.key]?.relevance === 'discussed').map((service) => service.key)
       );
@@ -192,6 +195,10 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleJobsFteChange = (kind: JobKind, timing: JobTiming, value: string) => {
+    setJobsFte((current) => ({ ...current, [kind]: { ...current[kind], [timing]: value } }));
   };
 
   const handleServiceToggle = (service: ServiceKey) => {
@@ -273,6 +280,7 @@ export default function DashboardPage() {
       generatedAt: new Date(),
       mainPoints: parseSummaryMarkdown(results.main_points),
       recommendations: parseSummaryMarkdown(results.recommendations),
+      jobs: jobsLines(jobsFte, results.jobs ?? null),
       supports: SERVICES.filter((service) => selectedServices.includes(service.key)).map((service) => service.label),
       writeUps: SERVICES.flatMap((service) => {
         const writeUp = writeUps[service.key];
@@ -281,7 +289,7 @@ export default function DashboardPage() {
           : [];
       }),
     };
-  }, [results, selectedServices, writeUps]);
+  }, [results, jobsFte, selectedServices, writeUps]);
 
   const handleCopy = useCallback(async () => {
     if (!documentInput) return;
@@ -379,6 +387,8 @@ export default function DashboardPage() {
             {results && (
               <SummaryResults
                 results={results}
+                jobsFte={jobsFte}
+                onJobsFteChange={handleJobsFteChange}
                 selectedServices={selectedServices}
                 onServiceToggle={handleServiceToggle}
                 writeUps={writeUps}

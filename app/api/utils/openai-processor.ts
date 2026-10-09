@@ -1,7 +1,14 @@
 import { OpenAI } from 'openai';
 import { chunkText } from './file-processor';
 import { SERVICES } from '@/lib/services';
-import type { ServiceAssessment, ServiceAssessments, ServiceRelevance, SummaryResponse } from '@/lib/summary-types';
+import type {
+  JobsFigure,
+  JobsImpact,
+  ServiceAssessment,
+  ServiceAssessments,
+  ServiceRelevance,
+  SummaryResponse,
+} from '@/lib/summary-types';
 
 export const MODEL = 'gpt-4o';
 const SYSTEM_PROMPT = 'You are the best business coach summary transcriber.';
@@ -242,23 +249,158 @@ export async function assessServices(transcript: string): Promise<ServiceAssessm
 }
 
 /* ------------------------------------------------------------------ */
+/* Jobs impact                                                         */
+/* ------------------------------------------------------------------ */
+
+const JOB_FIGURE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['discussed', 'detail', 'fte', 'evidence'],
+  properties: {
+    discussed: { type: 'boolean' },
+    detail: {
+      type: 'string',
+      description:
+        'One plain-English sentence for the IGS: the roles, headcount, hours and timing as stated, and how the FTE figure was reached. Says it did not come up when not discussed.',
+    },
+    fte: {
+      type: ['number', 'null'],
+      description: 'Full-time equivalents to one decimal place. Null when not discussed or no figure can be worked out.',
+    },
+    evidence: {
+      type: 'string',
+      description:
+        'One continuous verbatim quote of under 25 words from the transcript, copied exactly with no ellipses. Empty string when not discussed.',
+    },
+  },
+};
+
+const JOB_TIMING_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['achieved', 'forecast'],
+  properties: { achieved: JOB_FIGURE_SCHEMA, forecast: JOB_FIGURE_SCHEMA },
+};
+
+const JOBS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['created', 'safeguarded'],
+  properties: { created: JOB_TIMING_SCHEMA, safeguarded: JOB_TIMING_SCHEMA },
+};
+
+function buildJobsPrompt(transcript: string): string {
+  return [
+    'You read a business coaching meeting transcript between an Innovation and Growth Specialist (IGS) and a client business, and pull out the jobs impact the IGS reports to Innovate UK.',
+    '',
+    'Report four figures, each in full-time equivalents (FTE):',
+    '- created.achieved: new jobs the business has already created, i.e. people already hired into new roles.',
+    '- created.forecast: new jobs the business plans or expects to create, e.g. planned hires or roles a grant, investment or contract would fund.',
+    '- safeguarded.achieved: existing jobs that were at risk and have been saved, safeguarded or maintained, e.g. because a contract, funding or the support kept them.',
+    '- safeguarded.forecast: existing jobs at risk that the business expects to save, safeguard or maintain if a plan, contract or funding comes through.',
+    '',
+    'Rules:',
+    '- A full-time role is 1.0 FTE. A part-time role is its weekly hours divided by 37.5; if the hours are not given, count it as 0.5. Round to one decimal place.',
+    "- Count employees on the client's payroll, including apprentices. Do not count contractors, freelancers, consultants or the IGS; mention them in detail if they came up.",
+    '- Replacing someone who left is not a new job. The current headcount is not safeguarded jobs unless the meeting says those jobs were at risk.',
+    '- Count each job once: not in both created and safeguarded, and not in both achieved and forecast. A planned hire that has since been made is achieved.',
+    '- discussed is true only when the transcript talks about that kind of job change. When it is false, fte is null and evidence is an empty string.',
+    '- When jobs were discussed but no number can be worked out, set fte to null and say so in detail.',
+    '- Use only what the transcript says. Never guess a number.',
+    '',
+    'Transcript:',
+    transcript,
+  ].join('\n');
+}
+
+function isJobsFigure(value: unknown): value is JobsFigure {
+  const candidate = value as JobsFigure;
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof candidate.discussed === 'boolean' &&
+    (candidate.fte === null || typeof candidate.fte === 'number') &&
+    typeof candidate.detail === 'string' &&
+    typeof candidate.evidence === 'string'
+  );
+}
+
+/**
+ * Ask the model for the jobs created and saved in FTE, split into achieved and
+ * forecast. The figures are suggestions: the coach checks and corrects them
+ * before reporting, so the quote behind each one is kept only if it is real.
+ */
+export async function assessJobs(transcript: string): Promise<JobsImpact> {
+  const openai = getOpenAIClient();
+  const [firstChunk] = chunkText(transcript);
+
+  const response = await openai.chat.completions.create({
+    model: MODEL,
+    messages: [
+      { role: 'system', content: 'You are a precise analyst. Answer only with the requested JSON.' },
+      { role: 'user', content: buildJobsPrompt(firstChunk ?? transcript) },
+    ],
+    temperature: 0,
+    max_tokens: 1500,
+    response_format: {
+      type: 'json_schema',
+      json_schema: { name: 'jobs_impact', strict: true, schema: JOBS_SCHEMA },
+    },
+  });
+
+  const raw = response.choices[0]?.message?.content;
+  if (!raw) {
+    throw new Error('Empty jobs response');
+  }
+
+  const parsed = JSON.parse(raw) as Record<string, Record<string, unknown>>;
+  const normalisedTranscript = normaliseForMatch(transcript);
+
+  const figure = (kind: 'created' | 'safeguarded', timing: 'achieved' | 'forecast'): JobsFigure => {
+    const value = parsed[kind]?.[timing];
+    if (!isJobsFigure(value)) {
+      throw new Error(`Jobs response missing "${kind}.${timing}"`);
+    }
+    if (!value.discussed) {
+      return { discussed: false, fte: null, detail: value.detail, evidence: '' };
+    }
+    return {
+      discussed: true,
+      fte: value.fte !== null && value.fte >= 0 ? Math.round(value.fte * 10) / 10 : null,
+      detail: value.detail,
+      evidence: verifiedQuote(value.evidence, normalisedTranscript),
+    };
+  };
+
+  return {
+    created: { achieved: figure('created', 'achieved'), forecast: figure('created', 'forecast') },
+    safeguarded: { achieved: figure('safeguarded', 'achieved'), forecast: figure('safeguarded', 'forecast') },
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Orchestration                                                       */
 /* ------------------------------------------------------------------ */
 
 /**
- * Generate both summary sections and the service assessment. The three model
- * calls run in parallel; a classification failure does not fail the summary.
+ * Generate both summary sections, the service assessment and the jobs impact.
+ * The model calls run in parallel; a classification or jobs failure does not
+ * fail the summary.
  */
 export async function generateSummary(
   transcript: string,
   prompts: SummaryPrompts,
   params: GenerationParams
 ): Promise<SummaryResponse> {
-  const [mainPoints, recommendations, services] = await Promise.all([
+  const [mainPoints, recommendations, services, jobs] = await Promise.all([
     processChunks(transcript, prompts.mainPoints, params),
     processChunks(transcript, prompts.recommendations, params),
     assessServices(transcript).catch((error) => {
       console.error('Service classification failed:', error);
+      return null;
+    }),
+    assessJobs(transcript).catch((error) => {
+      console.error('Jobs assessment failed:', error);
       return null;
     }),
   ]);
@@ -272,11 +414,15 @@ export async function generateSummary(
   if (!services) {
     warnings.push('Salesforce support suggestions could not be generated for this transcript. Please tick the supports manually.');
   }
+  if (!jobs) {
+    warnings.push('Jobs created and saved could not be worked out for this transcript. Please enter the FTE figures manually.');
+  }
 
   return {
     main_points: normalizeMarkdown(mainPoints.text),
     recommendations: normalizeMarkdown(recommendations.text),
     services,
+    jobs,
     transcript,
     warnings,
   };

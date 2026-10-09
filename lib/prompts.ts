@@ -35,10 +35,9 @@ Debt Finance Raised
 EEN Network Advisory Achievement
 Grant Funding Secured
 Investment Raised
-Jobs Created
-Jobs Maintained
 Partnering Achievement
 Cross-reference each output and include it in the "Outputs & Outcomes" section if mentioned.
+Do not include jobs created, saved, safeguarded or maintained here; they are reported in their own section.
 
 Identify Referrals to Other Support
 Review the transcript for referrals and match against the following categories:

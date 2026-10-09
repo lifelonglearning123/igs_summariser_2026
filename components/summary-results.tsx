@@ -4,12 +4,16 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, Check, ClipboardCheck, Copy, Download, FileText, Lightbulb, RefreshCw } from 'lucide-react';
 import SummaryBlocks from '@/components/summary-blocks';
 import SalesforceSupports from '@/components/salesforce-supports';
+import JobsImpact from '@/components/jobs-impact';
+import type { JobKind, JobsFte, JobTiming } from '@/lib/jobs';
 import { formatGeneratedAt, parseSummaryMarkdown } from '@/lib/summary-format';
 import { SERVICES, ServiceKey } from '@/lib/services';
 import type { ServiceWriteUps, SummaryResponse } from '@/lib/summary-types';
 
 interface SummaryResultsProps {
   results: SummaryResponse;
+  jobsFte: JobsFte;
+  onJobsFteChange: (kind: JobKind, timing: JobTiming, value: string) => void;
   selectedServices: ServiceKey[];
   onServiceToggle: (service: ServiceKey) => void;
   writeUps: ServiceWriteUps;
@@ -25,6 +29,8 @@ interface SummaryResultsProps {
 
 export default function SummaryResults({
   results,
+  jobsFte,
+  onJobsFteChange,
   selectedServices,
   onServiceToggle,
   writeUps,
@@ -79,6 +85,8 @@ export default function SummaryResults({
           <SummaryBlocks blocks={recommendations} />
         </CardContent>
       </Card>
+
+      <JobsImpact jobs={results.jobs} fte={jobsFte} onChange={onJobsFteChange} />
 
       <SalesforceSupports
         assessments={results.services}

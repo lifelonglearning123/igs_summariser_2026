@@ -19,6 +19,23 @@ export interface ServiceAssessment {
 
 export type ServiceAssessments = Record<ServiceKey, ServiceAssessment>;
 
+/** One jobs figure the AI found in the meeting, for Innovate UK reporting. */
+export interface JobsFigure {
+  /** True when the meeting talked about this kind of job change. */
+  discussed: boolean;
+  /** Full-time equivalents; null when not discussed or no figure could be worked out. */
+  fte: number | null;
+  /** One plain-English sentence: roles, headcount, hours and how the FTE was reached. */
+  detail: string;
+  /** A short verified quote from the transcript; empty when there is none. */
+  evidence: string;
+}
+
+export interface JobsImpact {
+  created: { achieved: JobsFigure; forecast: JobsFigure };
+  safeguarded: { achieved: JobsFigure; forecast: JobsFigure };
+}
+
 /** Shape returned by POST /api/summary. */
 export interface SummaryResponse {
   /** Markdown for the "Main Discussion Points" section. */
@@ -27,6 +44,8 @@ export interface SummaryResponse {
   recommendations: string;
   /** AI assessment of the meeting against every Salesforce support; null if it failed. */
   services: ServiceAssessments | null;
+  /** Jobs created and saved, in FTE, for Innovate UK reporting; null if it failed. */
+  jobs: JobsImpact | null;
   /**
    * The transcript text the summary was built from, so the dashboard can ask
    * for a per-service write-up later without re-uploading the file.

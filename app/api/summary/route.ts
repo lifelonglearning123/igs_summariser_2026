@@ -3,7 +3,7 @@ import { isSupportedFileName, readFileContent } from '../utils/file-processor';
 import { generateSummary } from '../utils/openai-processor';
 import { DEFAULT_MAIN_POINTS_PROMPT, DEFAULT_RECOMMENDATIONS_PROMPT } from '@/lib/prompts';
 
-// Three model calls run in parallel; allow up to a minute on serverless hosts.
+// Four model calls run in parallel; allow up to a minute on serverless hosts.
 export const maxDuration = 60;
 
 const DEFAULT_PARAMS = { temperature: 0.5, topP: 1, frequencyPenalty: 0, presencePenalty: 0 };
